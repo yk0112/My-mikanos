@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "uefilib.h": "c",
+        "uefi.h": "c",
+        "uefibootservicestablelib.h": "c"
+    }
+}
