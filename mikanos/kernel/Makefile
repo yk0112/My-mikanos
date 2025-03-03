@@ -10,10 +10,11 @@ LDFLAGS += --entry KernelMain -z norelro --image-base 0x100000 --static
 all: $(TARGET)
 
 .PHONY: clean
-clean: rm -rf *.o
+clean: 
+	rm -rf *.o
 
 kernel.elf: $(OBJS) Makefile
-		ld.lld $(LDFLAGS) -o kernel.elf $(OBJS)
+	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS)
 
 %.o: %.cpp Makefile
-		clang++ $(CPPFLAGS) $(CXXFLAGS) -c $<
+	clang++ $(CPPFLAGS) $(CXXFLAGS) -c $<
