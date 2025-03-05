@@ -2,6 +2,8 @@
 #include  <Library/UefiLib.h>
 #include  <Library/UefiBootServicesTableLib.h>
 #include  <Library/PrintLib.h>
+#include  <Library/MemoryAllocationLib.h>
+#include  <Library/BaseMemoryLib.h>
 #include  <Protocol/LoadedImage.h>
 #include  <Protocol/SimpleFileSystem.h>
 #include  <Protocol/DiskIo2.h>
@@ -247,7 +249,7 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_tab
     UINT64 kernel_first_addr, kernel_last_addr;
     CalcLoadAddressRange(kernel_ehdr, &kernel_first_addr, &kernel_last_addr);
     UINTN num_pages = (kernel_last_addr - kernel_first_addr + 0xfff) / 0x1000;
-    status = gBS->AllocatePages(AllocateAddress, EfiLoaderData, num_pages, kernel_first_addr);
+    status = gBS->AllocatePages(AllocateAddress, EfiLoaderData, num_pages, &kernel_first_addr);
 
     if(EFI_ERROR(status)) {
       Print(L"failed to allocate pages: %r\n", status);

@@ -1,47 +1,8 @@
 #include <cstdint>
 #include <cstddef>
 #include "frame_buffer_config.hpp"
-
-struct PixelColor {
-    uint8_t r,g,b;
-};
-
-class PixelWriter {
-    public:
-        PixelWriter(const FrameBufferConfig& config) : config_{config} {}
-        virtual ~PixelWriter() = default; 
-        virtual void Write(int x, int y, const PixelColor& c) = 0; // 純粋仮想関数
-    protected:
-        uint8_t* PixelAt(int x, int y) {
-            return config_.frame_buffer + 4 * (config_.pixels_per_scan_line * y + x);
-        }
-    private:
-        const FrameBufferConfig& config_;
-};
-
-class RGBResv8BitPerColorPixelWriter : public PixelWriter {
-    public:
-        using PixelWriter::PixelWriter; // 継承コンストラクタ
-
-        virtual void Write(int x, int y, const PixelColor& c) override {
-            auto p = PixelAt(x, y);
-            p[0] = c.r;
-            p[1] = c.g;
-            p[2] = c.b;
-        };
-};
-
-class BGRResv8BitPerColorPixelWriter : public PixelWriter {
-    public:
-        using PixelWriter::PixelWriter; // 継承コンストラクタ
-
-        virtual void Write(int x, int y, const PixelColor& c) override {
-            auto p = PixelAt(x, y);
-            p[0] = c.b;
-            p[1] = c.g;
-            p[2] = c.r;
-        };
-};
+#include "graphics.hpp"
+#include "font.hpp"
 
 void* operator new(size_t size, void* buf) {
     return buf;
@@ -75,6 +36,8 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
             pixel_writer->Write(x, y, {0, 255, 0});
         }
     }
+    WriteAscii(*pixel_writer, 50, 50, 'A', {0, 0, 0});
+    WriteAscii(*pixel_writer, 58, 50, 'A', {0, 0, 0});
 
     while(1) __asm__("hlt");
 }
