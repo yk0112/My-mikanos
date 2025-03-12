@@ -5,10 +5,7 @@
 #include "graphics.hpp"
 #include "font.hpp"
 #include "console.hpp"
-
-void* operator new(size_t size, void* buf) {
-    return buf;
-}
+#include "pci.hpp"
 
 void operator delete(void* obj) noexcept {}
 
@@ -82,20 +79,31 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
     FillRectangle(*pixel_writer, {0, kFrameHeight - 50}, {kFrameWidth / 5, 50}, {80, 80, 80});
     DrawRectangle(*pixel_writer, {10, kFrameHeight - 40}, {30, 30}, {160, 160, 160});
 
-    console = new(console_buf) Console{*pixel_writer, {0, 0, 0}, {255, 255, 255}};
+    console = new(console_buf) Console{*pixel_writer, kDesktopFGColor, kDesktopBGColor};
     printk("Welcom to MikanOS!\n");
     
     // Draw mouse cursor
     for(int dy = 0; dy < kMouseCursorHeight; dy++) {
         for(int dx = 0 ; dx < kMouseCursorWidth; dx++) {
-            if(mouse_cursor_shape[dx][dy] == '@') {
+            if(mouse_cursor_shape[dy][dx] == '@') {
                 pixel_writer->Write(200 + dx, 100 + dx, {0, 0, 0});
             }
-            else if(mouse_cursor_shape[dx][dy] == '.') {
+            else if(mouse_cursor_shape[dy][dx] == '.') {
                 pixel_writer->Write(200 + dx, 100 + dy, {255, 255, 255});
             }
         }
-    }    
+    }
+
+    auto err = pci::ScanAllBus();
+    printk("ScanAllBus: %s\n", err.Name());
+
+    for(int i = 0; i < pci::num_device; i++) {
+        const auto& dev = pci::devices[i];
+        auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
+        auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
+        printk("%d.%d.%d: vend %04x, class %08x, head %02x\n", dev.bus, dev.device, 
+                        dev.function, vendor_id, class_code, dev.header_type);
+    }
     
     while(1) __asm__("hlt");
 }
