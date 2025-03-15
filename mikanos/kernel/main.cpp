@@ -11,6 +11,8 @@
 #include "pci.hpp"
 #include "mouse.hpp"
 #include "logger.hpp"
+#include "interrupt.hpp"
+#include "asmfunc.h"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -29,6 +31,8 @@ char mouse_cursor_buf[sizeof(MouseCursor)];
 PixelWriter* pixel_writer;
 Console* console;
 MouseCursor* mouse_cursor;
+
+usb::xhci::Controller* xhc;
 
 int printk(const char* format, ...) {
     va_list ap;
@@ -66,6 +70,17 @@ void SwitchEhci2Xhci(const pci::Device& xhc_dev) {
     pci::WriteConfReg(xhc_dev, 0xd0, ehci2xhci_ports); // XUSB2PR
     Log(kDebug, "SwitchEhci2Xhci: SS = %02, xHCI = %02x\n",
         superspeed_ports, ehci2xhci_ports);
+}
+
+__attribute__((interrupt))
+void IntHandlerXHCI(InterruptFrame* frame) {
+    while(xhc->PrimaryEventRing()->HasFront()) {
+        if(auto err = ProcessEvent(*xhc)) {
+            Log(kError, "Error while ProcessEvent: %s at %s:%d\n",
+                err.Name(), err.File(), err.Line());
+        }
+    }
+    NotifyEndOfInterrupt();
 }
 
 extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) {
@@ -121,6 +136,11 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
         Log(kInfo, "xHC has been found: %d.%d.%d\n",
             xhc_dev->bus, xhc_dev->device, xhc_dev->function);
     }
+
+    const uint16_t cs = GetCS();
+    SetIDEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate,0),
+                reinterpret_cast<uint64_t>(IntHandlerXHCI), cs);
+    LoadIDT(sizeof(idt) - 1, reinterpret_cast<uintptr_t>(&idt[0]));
 
     // Get MMIO address of xHC
     const withError<uint64_t> xhc_bar = pci::ReadBar(*xhc_dev, 0);
