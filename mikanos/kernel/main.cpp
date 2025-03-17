@@ -137,10 +137,15 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
             xhc_dev->bus, xhc_dev->device, xhc_dev->function);
     }
 
-    const uint16_t cs = GetCS();
-    SetIDEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate,0),
+    // Make Interrupt Descriptor Table(IDT) and MSI interrupt Settings.
+    const uint16_t cs = GetCS(); // Get code segment number
+    SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate,0),
                 reinterpret_cast<uint64_t>(IntHandlerXHCI), cs);
     LoadIDT(sizeof(idt) - 1, reinterpret_cast<uintptr_t>(&idt[0]));
+
+    const uint64_t bsp_local_apic_id = *reinterpret_cast<const uint32_t*>(0xfee00020) >> 24;
+    pci::ConfigureMSIFixedDestination(*xhc_dev, bsp_local_apic_id, pci::MSITriggerMode::kLevel, 
+                                      pci::MSIDeliveryMode::kFixed, InterruptVector::kXHCI, 0);
 
     // Get MMIO address of xHC
     const withError<uint64_t> xhc_bar = pci::ReadBar(*xhc_dev, 0);
@@ -163,6 +168,10 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
     Log(kInfo, "xHC starting\n");
     xhc.Run();
 
+    ::xhc = &xhc; // Assign to global variable xhc
+    __asm__("sti");
+  
+    // Set to class driver for mouse
     usb::HIDMouseDriver::default_observer = MouseObserver;
 
     for(int i = 0; i <= xhc.MaxPorts(); i++) {
@@ -177,15 +186,6 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
             }
         }
     }
-
-    // Processing mouse events stored in xHC
-    while(1) {
-        if(auto err = ProcessEvent(xhc)) {
-            Log(kError, "Error while ProcessEvent: %s at %s:%d\n",
-                err.Name(), err.File(), err.Line());      
-        }
-    }
-
 
     while(1) __asm__("hlt");
 }

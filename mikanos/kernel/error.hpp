@@ -24,7 +24,8 @@ class Error {
             kInvalidPhase,
             kUnknownXHCISpeedID,
             kNoWaiter,
-            kLastOfCode, 
+            kNoPCIMSI,
+            kLastOfCode,  
         };
 
         Error(Code code, const char* file, int line) : code_{code}, line_{line}, file_{file} {};
