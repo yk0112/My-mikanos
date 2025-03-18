@@ -1,3 +1,3 @@
-# MikanOS
+# My-mikanOS
+This is a repository for learning MikanOS (https://zero.osdev.jp/).
 
-[ゼロからのOS自作入門](https://zero.osdev.jp/) の学習用リポジトリ
