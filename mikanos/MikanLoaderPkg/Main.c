@@ -11,15 +11,8 @@
 #include  <Guid/FileInfo.h>
 #include "../kernel/frame_buffer_config.hpp"
 #include "../kernel/elf.hpp"
+#include "../kernel/memory_map.hpp"
 
-struct MemoryMap {
-    UINTN buffer_size;
-    VOID* buffer;
-    UINTN map_size;
-    UINTN map_key;
-    UINTN descriptor_size;
-    UINT32 descriptor_version;
-};
 
 const CHAR16* GetMemoryTypeUnicode(EFI_MEMORY_TYPE type) {
   switch (type) {
@@ -303,9 +296,9 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_tab
     
     // Starts the kernel
     UINT64 entry_addr = *(UINT64*)(kernel_first_addr + 24);
-    typedef void EntryPointType(const struct FrameBufferConfig*);
+    typedef void EntryPointType(const struct FrameBufferConfig*, const struct MemoryMap*);
     EntryPointType* entry_point = (EntryPointType*)entry_addr;
-    entry_point(&config);
+    entry_point(&config, &memmap);
     
     Print(L"All done\n");
     while(1);
