@@ -78,7 +78,7 @@ class Error {
 #define MAKE_ERROR(code) Error((code), __FILE__, __LINE__)
 
 template<class T>
-struct  withError {
+struct  WithError {
     T value;
     Error error;
 };

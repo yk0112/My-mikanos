@@ -16,6 +16,8 @@
 #include "queue.hpp"
 #include "memory_map.hpp"
 #include "segment.hpp"
+#include "paging.hpp"
+#include "memory_manager.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -30,10 +32,12 @@ const PixelColor kDesktopFGColor{255, 255, 255};
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 char console_buf[sizeof(Console)];
 char mouse_cursor_buf[sizeof(MouseCursor)];
+char memory_manager_buf[sizeof(BitmapMemoryManager)];
 
 PixelWriter* pixel_writer;
 Console* console;
 MouseCursor* mouse_cursor;
+BitmapMemoryManager* memory_manager;
 
 usb::xhci::Controller* xhc;
 
@@ -91,10 +95,10 @@ void IntHandlerXHCI(InterruptFrame* frame) {
     NotifyEndOfInterrupt();
 }
 
-extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config, const MemoryMap& memory_map) {
+extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config_ref, const MemoryMap& memory_map_ref) {
     // Copy arguments to New stack.
-    FrameBufferConfig frame_buffer_config{frame_buffer_config};
-    MemoryMap memory_map{memory_map};
+    FrameBufferConfig frame_buffer_config{frame_buffer_config_ref};
+    MemoryMap memory_map{memory_map_ref};
 
     switch (frame_buffer_config.pixel_format) {
         case kPixelRGBResv8BitPerColor:
@@ -119,11 +123,42 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     printk("Welcom to MikanOS!\n");
     SetLogLevel(kWarn);
 
+    // Setup segmentation
     SetupSegments();
     const uint16_t kernel_cs = 1 << 3;  // convert index to selector format 
     const uint16_t kernel_ss = 2 << 3;
     SetDSAll(0);
     SetCSSS(kernel_cs, kernel_ss);
+
+    // Setup Page table
+    SetupIdentityPageTable();
+
+    // Setup memory manager
+    ::memory_manager = new(memory_manager_buf) BitmapMemoryManager;
+    const auto memory_map_base = reinterpret_cast<uintptr_t>(memory_map.buffer);
+    uintptr_t available_end = 0; // 最後の未使用領域の末尾アドレス
+
+    for(uintptr_t iter = memory_map_base; iter < memory_map_base + memory_map.map_size; 
+        iter += memory_map.descriptor_size) {
+        auto desc = reinterpret_cast<const MemoryDescriptor*>(iter);
+        // 歯抜けの空間は全て使用済みと判断
+        // メモリマップのエントリは、物理アドレスの昇順で並べられているはず
+        if(available_end < desc->physical_start) {
+            memory_manager->MarkAllocated(
+                    FrameID{available_end / kBytesPerFrame},
+                    (desc->physical_start - available_end) / kBytesPerFrame);
+        }
+        const auto physical_end = desc->physical_start + desc->number_of_pages * kUEFIPageSize;
+        if(IsAvailable(static_cast<MemoryType>(desc->type))) {
+            available_end = physical_end;
+        }
+        else {
+            memory_manager->MarkAllocated(
+                    FrameID{desc->physical_start / kBytesPerFrame},
+                    desc->number_of_pages * kUEFIPageSize / kBytesPerFrame);
+        }
+    }
+    memory_manager->SetMemoryRange(FrameID{1}, FrameID{available_end / kBytesPerFrame});
 
     // Display Memory map
     const std::array<MemoryType, 3> available_memory_types{
@@ -192,7 +227,7 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
                                       pci::MSIDeliveryMode::kFixed, InterruptVector::kXHCI, 0);
 
     // Get MMIO address of xHC
-    const withError<uint64_t> xhc_bar = pci::ReadBar(*xhc_dev, 0);
+    const WithError<uint64_t> xhc_bar = pci::ReadBar(*xhc_dev, 0);
     Log(kDebug, "ReadBar: %s\n", xhc_bar.error.Name());
     const uint64_t xhc_mmio_base = xhc_bar.value & ~static_cast<uint64_t>(0xf); // The lower 4 bits are control flags
     Log(kDebug, "xHC mmio_base = %08lx\n", xhc_mmio_base);

@@ -250,7 +250,7 @@ namespace pci {
         return ConfigureMSI(dev, msg_addr, msg_data, num_vector_exponent);
     }
 
-    withError<uint64_t> ReadBar(Device& device, unsigned int bar_index) {
+    WithError<uint64_t> ReadBar(Device& device, unsigned int bar_index) {
         if(bar_index >= 6) {
             return {0, MAKE_ERROR(Error::kIndexOutOfRange)};
         }

@@ -32,7 +32,7 @@ LoadIDT:
     pop rbp
     ret
 
-global LoadGDT. ; void LoadGDT(uint16_t limit, uint64_t offset);
+global LoadGDT ; void LoadGDT(uint16_t limit, uint64_t offset);
 LoadGDT:
     push rbp
     mov rbp, rsp
@@ -58,8 +58,8 @@ SetCSSS:
     mov rbp, rsp
     mov ss, si
     mov rax, .next
-    push rdi.  ;CS
-    push rax.  ; .next
+    push rdi  ; CS
+    push rax  ; next
     o64 retf
 .next:
     mov rsp, rbp
@@ -73,11 +73,12 @@ SetCR3:
     ret
 
 extern kernel_main_stack
-extern kernelMainNewStack
+extern KernelMainNewStack
 
-global kernelMain
-kernelMain:
+global KernelMain
+KernelMain:
     mov rsp, kernel_main_stack + 1024 * 1024
+    call KernelMainNewStack
 .fin
     hlt
     jmp .fin

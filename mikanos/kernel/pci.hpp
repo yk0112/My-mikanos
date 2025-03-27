@@ -99,7 +99,7 @@ namespace pci {
     Error ScanDevice(uint8_t bus, uint8_t device);
     Error ScanBus(uint8_t bus);
     Error ScanAllBus();
-    withError<uint64_t> ReadBar(Device& device, unsigned int bar_index);
+    WithError<uint64_t> ReadBar(Device& device, unsigned int bar_index);
     uint32_t ReadConfReg(const Device& dev, uint8_t reg_addr);
 
     MSICapability ReadMSICapability(const Device& dev, uint8_t cap_addr);
