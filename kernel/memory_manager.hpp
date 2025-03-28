@@ -54,6 +54,6 @@ class BitmapMemoryManager {
             void SetBit(FrameID frame, bool allocated);
 };
 
-
+Error InitializeHeap(BitmapMemoryManager& memory_manager);
 
 static const FrameID kNullFrame{std::numeric_limits<size_t>::max()};
