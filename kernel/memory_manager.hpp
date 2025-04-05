@@ -1,6 +1,7 @@
 #pragma once
 #include <limits>
 #include <array>
+#include <sys/types.h>
 #include "error.hpp"
 
 namespace {

@@ -1,6 +1,5 @@
 #include "memory_manager.hpp"
 
-
 extern "C" caddr_t program_break, program_break_end;
 
 Error InitializeHeap(BitmapMemoryManager& memory_manager) {
