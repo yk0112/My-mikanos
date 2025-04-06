@@ -37,7 +37,8 @@ void LayerManager::SetWriter(PixelWriter* writer) {
 
 Layer& LayerManager::NewLayer() {
     ++latest_id_;
-    return *layers_.emplace_back(new Layer{latest_id_}); // return void type ?
+    layers_.emplace_back(new Layer{latest_id_}); // return void type ?
+    return *layers_.back();
 }
 
 Layer* LayerManager::FindLayer(unsigned int id) {

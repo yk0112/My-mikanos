@@ -30,6 +30,7 @@ void operator delete(void* obj) noexcept {}
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 char console_buf[sizeof(Console)];
 char memory_manager_buf[sizeof(BitmapMemoryManager)];
+char layer_manager_buf[sizeof(LayerManager)];
 
 PixelWriter* pixel_writer;
 Console* console;
@@ -160,30 +161,6 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         exit(1);
     }
 
-    // Display Memory map
-    const std::array<MemoryType, 3> available_memory_types{
-        MemoryType::kEfiBootServicesCode,
-        MemoryType::kEfiBootServicesData,
-        MemoryType::kEfiConventionalMemory,
-    };
-    printk("memory_map: %p\n", &memory_map);
-    
-    for(uintptr_t iter = reinterpret_cast<uintptr_t>(memory_map.buffer); 
-        iter < reinterpret_cast<uintptr_t>(memory_map.buffer) + memory_map.map_size; 
-        iter += memory_map.descriptor_size) {
-        auto desc = reinterpret_cast<MemoryDescriptor*>(iter);
-        for(int i = 0; i < available_memory_types.size(); i++) {
-            if(desc->type == available_memory_types[i]) {
-                printk("type = %u, phys = %08lx - %08lx, pages = %lu, attr = %08lx\n",
-                    desc->type,
-                    desc->physical_start,
-                    desc->physical_start + desc->number_of_pages * 4096 - 1,
-                    desc->number_of_pages,
-                    desc->attribute);
-            }
-        }
-    }
-
     // Scan all PCI devices info
     auto err = pci::ScanAllBus();
     printk("ScanAllBus: %s\n", err.Name());
@@ -263,20 +240,23 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     }
 
     // Create a window for background and mouse cursor
+    printk("OK2\n");
     const int kFrameWidth = frame_buffer_config.horizontal_resolution;
     const int kFrameHeight = frame_buffer_config.vertical_resolution;
     
     auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight);
     auto bgwriter = bgwindow->Writer();
-
+    printk("OK4\n"); 
     DrawDesktop(*bgwriter);
+    printk("OK3\n"); // 表示されない
     console->SetWriter(bgwriter);
+    // printk("OK3\n"); // 表示されない
 
     auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight);
     mouse_window->SetTransparentColor(kMouseTransparentColor);
     DrawMouseCursor(mouse_window->Writer(), {0, 0}); 
 
-    layer_manager = new LayerManager;
+    layer_manager = new(layer_manager_buf) LayerManager;
     layer_manager->SetWriter(pixel_writer);
 
     auto bglayer_id = layer_manager->NewLayer()
@@ -288,11 +268,14 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         .SetWindow(mouse_window)
         .Move({200, 200})
         .ID();
-
+    
+    printk("OK1\n");
     layer_manager->UpDown(bglayer_id, 0);
     layer_manager->UpDown(mouse_layer_id, 1);
     layer_manager->Draw(); // Display all layers
-    
+    printk("Display all\n");
+
+    // Interrupt Event Handling
     std::array<Message, 32> main_queue_data;
     ArrayQueue<Message> main_queue{main_queue_data};
     ::main_queue = &main_queue;
@@ -321,8 +304,6 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
             Log(kError, "Unknown message type: %d\n", msg.type);
         }
     }
-
-    while(1) __asm__("hlt");
 }
 
 extern "C" void __cxa_pure_virtual() {
