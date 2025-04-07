@@ -19,6 +19,7 @@
 #include "paging.hpp"
 #include "memory_manager.hpp"
 #include "layer.hpp"
+#include "timer.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -64,7 +65,11 @@ int printk(const char* format, ...) {
 
 void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
     layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
+    StartLAPICTimer();
     layer_manager->Draw();
+    auto elapsed = LAPICTimerElapsed();
+    StopLAPICTimer();
+    printk("MouseObserver: elapsed = %u\n", elapsed);
 }
 
 void SwitchEhci2Xhci(const pci::Device& xhc_dev) {
@@ -114,8 +119,13 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     DrawDesktop(*pixel_writer);
     console = new(console_buf) Console{kDesktopFGColor, kDesktopBGColor};
     console->SetWriter(pixel_writer);
+    
     printk("Welcom to MikanOS!\n");
     SetLogLevel(kWarn);
+
+    // Initialize timer
+    InitializeLAPICTimer();
+
 
     // Setup segmentation
     SetupSegments();
@@ -240,17 +250,13 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     }
 
     // Create a window for background and mouse cursor
-    printk("OK2\n");
     const int kFrameWidth = frame_buffer_config.horizontal_resolution;
     const int kFrameHeight = frame_buffer_config.vertical_resolution;
     
     auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight);
     auto bgwriter = bgwindow->Writer();
-    printk("OK4\n"); 
     DrawDesktop(*bgwriter);
-    printk("OK3\n"); // 表示されない
     console->SetWriter(bgwriter);
-    // printk("OK3\n"); // 表示されない
 
     auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight);
     mouse_window->SetTransparentColor(kMouseTransparentColor);
@@ -269,11 +275,9 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         .Move({200, 200})
         .ID();
     
-    printk("OK1\n");
     layer_manager->UpDown(bglayer_id, 0);
     layer_manager->UpDown(mouse_layer_id, 1);
     layer_manager->Draw(); // Display all layers
-    printk("Display all\n");
 
     // Interrupt Event Handling
     std::array<Message, 32> main_queue_data;
