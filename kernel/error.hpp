@@ -25,7 +25,8 @@ class Error {
             kUnknownXHCISpeedID,
             kNoWaiter,
             kNoPCIMSI,
-            kLastOfCode,  
+            kUnknownPixelFormat,
+            kLastOfCode,  // always last elem
         };
 
         Error(Code code, const char* file, int line) : code_{code}, line_{line}, file_{file} {};
