@@ -57,7 +57,7 @@ Error FrameBuffer::Copy(Vector2D<int> pos, const FrameBuffer& src) {
     const auto bytes_per_copy_line = 
         bytes_per_pixel * (copy_end_dst_x - copy_start_dst_x);
     uint8_t* dst_buf = config_.frame_buffer + bytes_per_pixel * 
-                        (config_.pixels_per_scan_line * copy_end_dst_y + copy_start_dst_x);
+                        (config_.pixels_per_scan_line * copy_start_dst_y + copy_start_dst_x);
     const uint8_t* src_buf = src.config_.frame_buffer;
 
     for(int dy = 0; dy < copy_end_dst_y - copy_start_dst_y; dy++) {
@@ -69,7 +69,6 @@ Error FrameBuffer::Copy(Vector2D<int> pos, const FrameBuffer& src) {
     return MAKE_ERROR(Error::kSuccess);
 }
  
-
 int BitsPerPixel(PixelFormat format) {
     switch (format) {
     case kPixelBGRResv8BitPerColor:
