@@ -249,14 +249,14 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         }
     }
 
-    // Create a window for background and mouse cursor
+    // Create a window for background(and console) and mouse cursor
     const int kFrameWidth = frame_buffer_config.horizontal_resolution;
     const int kFrameHeight = frame_buffer_config.vertical_resolution;
     
     auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight, frame_buffer_config.pixel_format);
     auto bgwriter = bgwindow->Writer();
     DrawDesktop(*bgwriter);
-    console->SetWriter(bgwriter);
+    console->SetWindow(bgwindow); // Write console on bgwindow
 
     auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight, frame_buffer_config.pixel_format);
     mouse_window->SetTransparentColor(kMouseTransparentColor);

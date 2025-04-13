@@ -31,7 +31,8 @@ class Window {
         void Write(Vector2D<int> pos, PixelColor color);
         int Width() const;
         int Height() const;
-    
+        
+        void Move(Vector2D<int> dst_pos, const Rectangle<int>& src);
     private:
         int width_, height_;
         std::vector<std::vector<PixelColor>> data_{};
