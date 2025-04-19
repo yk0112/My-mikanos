@@ -90,7 +90,7 @@ void LayerManager::UpDown(unsigned int id, int new_height) {
         layer_stack_.insert(new_pos, layer);
         return;
     }
-    if(new_pos == layer_stack_.end()) {  // new_height == layer_stack.size()
+    if(new_pos == layer_stack_.end()) {  // new_pos == layer_stack.size()
         --new_pos;
     }
     layer_stack_.erase(old_pos);

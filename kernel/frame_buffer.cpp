@@ -74,7 +74,7 @@ Error FrameBuffer::Copy(Vector2D<int> des_pos, const FrameBuffer& src) {
     const auto dst_size = FrameBufferSize(config_);
     const auto src_size = FrameBufferSize(src.config_);
     const Vector2D<int> dst_start = ElementMax(des_pos, {0, 0});
-    const Vector2D<int> dst_end = ElementMax(des_pos + src_size, dst_size);
+    const Vector2D<int> dst_end = ElementMin(des_pos + src_size, dst_size);
 
     uint8_t* dst_buf = FrameAddrAt(dst_start, config_);
     const uint8_t* src_buf = FrameAddrAt({0, 0}, src.config_);

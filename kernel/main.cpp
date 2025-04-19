@@ -36,6 +36,8 @@ char layer_manager_buf[sizeof(LayerManager)];
 PixelWriter* pixel_writer;
 Console* console;
 unsigned int mouse_layer_id;
+Vector2D<int> screen_size;
+Vector2D<int> mouse_position;
 BitmapMemoryManager* memory_manager;
 
 usb::xhci::Controller* xhc;
@@ -64,12 +66,11 @@ int printk(const char* format, ...) {
 }
 
 void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
-    layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
-    StartLAPICTimer();
+    auto newpos = mouse_position + Vector2D<int>{displacement_x, displacement_y};
+    newpos = ElementMin(newpos, screen_size + Vector2D<int>{-1, -1}); // upper limit
+    mouse_position = ElementMax(newpos, {0, 0}); // lower limit
+    layer_manager->Move(mouse_layer_id, mouse_position);
     layer_manager->Draw();
-    auto elapsed = LAPICTimerElapsed();
-    StopLAPICTimer();
-    printk("MouseObserver: elapsed = %u\n", elapsed);
 }
 
 void SwitchEhci2Xhci(const pci::Device& xhc_dev) {
@@ -122,10 +123,6 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     
     printk("Welcom to MikanOS!\n");
     SetLogLevel(kWarn);
-
-    // Initialize timer
-    InitializeLAPICTimer();
-
 
     // Setup segmentation
     SetupSegments();
@@ -249,11 +246,11 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         }
     }
 
-    // Create a window for background(and console) and mouse cursor
-    const int kFrameWidth = frame_buffer_config.horizontal_resolution;
-    const int kFrameHeight = frame_buffer_config.vertical_resolution;
+    // Create window, background(and console) and mouse cursor
+    screen_size.x = frame_buffer_config.horizontal_resolution;
+    screen_size.y = frame_buffer_config.vertical_resolution;
     
-    auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight, frame_buffer_config.pixel_format);
+    auto bgwindow = std::make_shared<Window>(screen_size.x, screen_size.y, frame_buffer_config.pixel_format);
     auto bgwriter = bgwindow->Writer();
     DrawDesktop(*bgwriter);
     console->SetWindow(bgwindow); // Write console on bgwindow
@@ -262,13 +259,18 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     mouse_window->SetTransparentColor(kMouseTransparentColor);
     DrawMouseCursor(mouse_window->Writer(), {0, 0}); 
 
-    FrameBuffer screen;
-    if(auto err = screen.Initialize(frame_buffer_config)) {
+    auto main_window = std::make_shared<Window>(160, 68, frame_buffer_config.pixel_format);
+    DrawWindow(*main_window->Writer(), "Hello Window");
+    WriteString(*main_window->Writer(), {24, 28}, "Welcom to", {0, 0, 0});
+    WriteString(*main_window->Writer(), {24, 44}, "MikanOS world!", {0, 0, 0});
+    
+    FrameBuffer screen; 
+    if(auto err = screen.Initialize(frame_buffer_config)) { // make true frame buffer class
         Log(kError, "failed to initialize frame buffer: %s at %s:%d\n",
             err.Name(), err.File(), err.Line());
     }
 
-    layer_manager = new(layer_manager_buf) LayerManager{};
+    layer_manager = new LayerManager;
     layer_manager->SetWriter(&screen);
 
     auto bglayer_id = layer_manager->NewLayer()
@@ -281,8 +283,14 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         .Move({200, 200})
         .ID();
     
+    auto main_window_layer_id = layer_manager->NewLayer()
+        .SetWindow(main_window)
+        .Move({300, 100})
+        .ID();
+    
     layer_manager->UpDown(bglayer_id, 0);
     layer_manager->UpDown(mouse_layer_id, 1);
+    layer_manager->UpDown(main_window_layer_id, 1);
     layer_manager->Draw(); // Display all layers
 
     // Interrupt Event Handling
