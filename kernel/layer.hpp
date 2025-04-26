@@ -35,7 +35,8 @@ class LayerManager {
         void Hide(unsigned int id);
 
     private:
-        FrameBuffer* screen_{nullptr};
+        FrameBuffer* screen_{nullptr}; // 本物のframe buffer
+        mutable FrameBuffer back_buffer_;
         std::vector<std::unique_ptr<Layer>> layers_{};
         std::vector<Layer*> layer_stack_;
         unsigned int latest_id_{0};

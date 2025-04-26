@@ -12,6 +12,7 @@ class FrameBuffer {
         Error Copy(Vector2D<int> des_pos, const FrameBuffer& src, const Rectangle<int>& src_area);
         FrameBufferWriter& Writer() { return *writer_; }
         void Move(Vector2D<int> dst_pos, const Rectangle<int>& src);
+        const FrameBufferConfig& Config() const {return config_; };
     private:
         FrameBufferConfig config_{};
         std::vector<uint8_t> buffer_;   //  shadow frame buffer
