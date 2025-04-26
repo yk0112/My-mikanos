@@ -61,7 +61,7 @@ Error FrameBuffer::Initialize(const FrameBufferConfig& config) {
     return MAKE_ERROR(Error::kSuccess);
 }
 
-Error FrameBuffer::Copy(Vector2D<int> des_pos, const FrameBuffer& src) {
+Error FrameBuffer::Copy(Vector2D<int> des_pos, const FrameBuffer& src, const Rectangle<int>& src_area) {
     if(config_.pixel_format != src.config_.pixel_format) {
         return MAKE_ERROR(Error::kUnknownPixelFormat);
     }
@@ -71,16 +71,17 @@ Error FrameBuffer::Copy(Vector2D<int> des_pos, const FrameBuffer& src) {
         return MAKE_ERROR(Error::kUnknownPixelFormat);
     }
 
-    const auto dst_size = FrameBufferSize(config_);
-    const auto src_size = FrameBufferSize(src.config_);
-    const Vector2D<int> dst_start = ElementMax(des_pos, {0, 0});
-    const Vector2D<int> dst_end = ElementMin(des_pos + src_size, dst_size);
+    const Rectangle<int> src_area_shifted{des_pos, src_area.size}; // 重なり部分の座標とサイズ(再描画すべき矩形)
+    const Rectangle<int> src_outline{des_pos - src_area.pos, FrameBufferSize(src.config_)};   // src(shadow_buffer)の描画先とサイズ
+    const Rectangle<int> dst_outline{{0, 0}, FrameBufferSize(config_)};  // dst(frame buffer)の開始座標とサイズ
+    const auto copy_area = dst_outline & src_outline & src_area_shifted;
+    const auto src_start_pos = copy_area.pos - (des_pos - src_area.pos);  // shadow bufferの左端を基準にする(copy_area.pos - pos)
 
-    uint8_t* dst_buf = FrameAddrAt(dst_start, config_);
-    const uint8_t* src_buf = FrameAddrAt({0, 0}, src.config_);
+    uint8_t* dst_buf = FrameAddrAt(copy_area.pos, config_);
+    const uint8_t* src_buf = FrameAddrAt(src_start_pos, src.config_);
 
-    for(int dy = dst_start.y; dy < dst_end.y; dy++) {
-        memcpy(dst_buf, src_buf,  bytes_per_pixel * (dst_end.x - dst_start.x));
+    for(int y = 0; y < copy_area.size.y; y++) {
+        memcpy(dst_buf, src_buf,  bytes_per_pixel * copy_area.size.x);
         dst_buf += BytestPerScanLine(config_);
         src_buf += BytestPerScanLine(src.config_);
     }

@@ -70,7 +70,6 @@ void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
     newpos = ElementMin(newpos, screen_size + Vector2D<int>{-1, -1}); // upper limit
     mouse_position = ElementMax(newpos, {0, 0}); // lower limit
     layer_manager->Move(mouse_layer_id, mouse_position);
-    layer_manager->Draw();
 }
 
 void SwitchEhci2Xhci(const pci::Device& xhc_dev) {
@@ -253,17 +252,21 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     auto bgwindow = std::make_shared<Window>(screen_size.x, screen_size.y, frame_buffer_config.pixel_format);
     auto bgwriter = bgwindow->Writer();
     DrawDesktop(*bgwriter);
-    console->SetWindow(bgwindow); // Write console on bgwindow
 
     auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight, frame_buffer_config.pixel_format);
     mouse_window->SetTransparentColor(kMouseTransparentColor);
     DrawMouseCursor(mouse_window->Writer(), {0, 0}); 
 
-    auto main_window = std::make_shared<Window>(160, 68, frame_buffer_config.pixel_format);
+    auto main_window = std::make_shared<Window>(160, 52, frame_buffer_config.pixel_format);
     DrawWindow(*main_window->Writer(), "Hello Window");
-    WriteString(*main_window->Writer(), {24, 28}, "Welcom to", {0, 0, 0});
-    WriteString(*main_window->Writer(), {24, 44}, "MikanOS world!", {0, 0, 0});
     
+    auto console_window = std::make_shared<Window>(
+            Console::kColumns * 8, Console::kRows * 16, frame_buffer_config.pixel_format);
+    console->SetWindow(console_window);
+
+    char str[128];
+    unsigned int count = 0;
+
     FrameBuffer screen; 
     if(auto err = screen.Initialize(frame_buffer_config)) { // make true frame buffer class
         Log(kError, "failed to initialize frame buffer: %s at %s:%d\n",
@@ -288,10 +291,17 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         .Move({300, 100})
         .ID();
     
+    auto console_window_layer_id = layer_manager->NewLayer()
+        .SetWindow(console_window)
+        .Move({0, 0})
+        .ID();
+        
+    console->SetLayerID(console_window_layer_id);
+
     layer_manager->UpDown(bglayer_id, 0);
     layer_manager->UpDown(mouse_layer_id, 1);
     layer_manager->UpDown(main_window_layer_id, 1);
-    layer_manager->Draw(); // Display all layers
+    layer_manager->Draw({{0, 0}, screen_size}); // Display all layers
 
     // Interrupt Event Handling
     std::array<Message, 32> main_queue_data;
@@ -299,9 +309,15 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     ::main_queue = &main_queue;
 
     while(true) {
+        ++count;
+        sprintf(str, "%010u", count);
+        FillRectangle(*main_window->Writer(), {24, 28}, {8 * 10, 16}, {0xc6, 0xc6, 0xc6});
+        WriteString(*main_window->Writer(), {24, 28}, str, {0,0,0});
+        layer_manager->Draw(main_window_layer_id);
+
         __asm__("cli"); // Disable the interrupt flag for data race
         if(main_queue.Count() ==  0) {
-            __asm__("sti\n\thlt");  // Wait until the interrupt occur
+            __asm__("sti");  // Wait until the interrupt occur
             continue;
         }
         
