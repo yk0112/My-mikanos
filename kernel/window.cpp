@@ -7,7 +7,7 @@ Window::Window(int width, int height, PixelFormat shadow_format) : width_{width}
     for(int y = 0; y < height; y++) {
         data_[y].resize(width);
     }
-    // Initialize shadow buffer
+    // シャドウバッファの初期化
     FrameBufferConfig config{};
     config.frame_buffer = nullptr;
     config.horizontal_resolution = width;
@@ -37,7 +37,7 @@ void Window::DrawTo(FrameBuffer& dst, Vector2D<int> pos, const Rectangle<int>& a
         for (int x = std::max(0, 0 - pos.x);
          x < std::min(Width(), writer.Width() - pos.x); ++x) {
             const auto c = At(Vector2D<int>{x, y});
-            if(c != tc) {  // Don't paint transparent positions
+            if(c != tc) {  // 透過色の部分は塗らない
                 writer.Write(pos + Vector2D<int>{x, y}, c);
             }
         }
@@ -58,7 +58,7 @@ const PixelColor& Window::At(Vector2D<int> pos) const {
 
 void Window::Write(Vector2D<int> pos, PixelColor c) {
     data_[pos.y][pos.x] = c;
-    shadow_buffer_.Writer().Write(pos, c); // write to shadow buffer
+    shadow_buffer_.Writer().Write(pos, c); 
 }
 
 int Window::Width() const {
@@ -127,7 +127,7 @@ void DrawWindow(PixelWriter& writer, const char* title) {
 
     WriteString(writer, {24, 4}, title, ToColor(0xffffff)); // draw title
 
-    // draw close button
+    // 閉じるボタンの描画
     for(int y = 0; y < kCloseButtonHeight; y++) {
         for(int x = 0; x < kCloseButtonWidth; x++) {
             PixelColor c = ToColor(0xffffff);

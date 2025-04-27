@@ -14,12 +14,14 @@ class Layer {
         Vector2D<int> GetPosition() const;
         Layer& Move(Vector2D<int> pos);
         Layer& MoveRelative(Vector2D<int> pos_diff);
-        
+        Layer& SetDraggable(bool draggable); 
+        bool IsDraggable() const; 
         void DrawTo(FrameBuffer& screen, const Rectangle<int>& area) const;
     private:
         unsigned int id_;
         Vector2D<int> pos_;
         std::shared_ptr<Window> window_;
+        bool draggable_{false};
 };
 
 class LayerManager {
@@ -30,7 +32,7 @@ class LayerManager {
         void Draw(unsigned int id) const;
         void Move(unsigned int id, Vector2D<int> new_position);
         void MoveRelative(unsigned int id, Vector2D<int> pos_diff);
-
+        Layer* FindLayerByPosition(Vector2D<int> pos, unsigned int exclude_id) const;
         void UpDown(unsigned int id, int new_height);
         void Hide(unsigned int id);
 

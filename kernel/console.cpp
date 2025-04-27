@@ -40,6 +40,7 @@ void Console::PutString(const char* s) {
 }
 
 void Console::Refresh() {
+    FillRectangle(*writer_, {0, 0}, {8 * kColumns, 16 * kRows}, bg_color_);
     for(int row = 0; row < kRows; row++) {
         WriteString(*writer_, Vector2D<int>{0, 16 * row}, buffer_[row], fg_color_);
     }
