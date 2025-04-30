@@ -1,5 +1,6 @@
 #include "pci.hpp"
 #include "asmfunc.h"
+#include "logger.hpp"
 
 uint32_t MakeAddress(uint8_t bus, uint8_t device, uint8_t function, uint8_t reg_addr) {
     auto shl = [](uint32_t x, unsigned int bits) {
@@ -156,6 +157,7 @@ namespace pci {
         msi_cap.msg_addr = ReadConfReg(dev, cap_addr + 4);
 
         uint8_t msg_data_addr = cap_addr + 8;
+        // 64bitアドレスをサポートしているかで読み込み先が異なる
         if(msi_cap.header.bits.addr_64_capable) {
             msi_cap.msg_upper_addr = ReadConfReg(dev, cap_addr + 8);
             msg_data_addr = cap_addr + 12;
@@ -175,6 +177,8 @@ namespace pci {
         WriteConfReg(dev, cap_addr + 4, msi_cap.msg_addr);
 
         uint8_t msg_data_addr = cap_addr + 8;
+
+        // 64bitアドレスをサポートしているかで書き込み先が異なる
         if (msi_cap.header.bits.addr_64_capable) {
             WriteConfReg(dev, cap_addr + 8, msi_cap.msg_upper_addr);
             msg_data_addr = cap_addr + 12;
@@ -191,17 +195,19 @@ namespace pci {
                                uint32_t msg_addr, uint32_t msg_data, 
                                unsigned int num_vector_exponent) {
         auto msi_cap = ReadMSICapability(dev, cap_addr);
-        // Set max number of interrupt vectors that the device can support.   
+        
+        // デバイスがサポートできる割り込みベクタの最大数を設定   
         if(msi_cap.header.bits.multi_msg_capable <= num_vector_exponent) {
             msi_cap.header.bits.multi_msg_enable = msi_cap.header.bits.multi_msg_capable;
         }
         else {
             msi_cap.header.bits.multi_msg_enable = num_vector_exponent;
         }
-        msi_cap.header.bits.msi_enable = 1;
+
+        // MSI割り込みを有効化
+        msi_cap.header.bits.msi_enable = 1; 
         msi_cap.msg_addr = msg_addr;
         msi_cap.msg_data = msg_data;
-
         WriteMSICapability(dev, cap_addr, msi_cap);
     
         return MAKE_ERROR(Error::kSuccess);
@@ -215,9 +221,11 @@ namespace pci {
 
     Error ConfigureMSI(const Device& dev, uint32_t msg_addr, uint32_t msg_data,
         unsigned int num_vector_exponent) {
-            uint8_t cap_addr = ReadConfReg(dev, 0x34) & 0xffu;
+            // devのPCI空間からCapabitities pointerを読み込み
+            uint8_t cap_addr = ReadConfReg(dev, 0x34) & 0xffu;  
             uint8_t msi_cap_addr = 0, msix_cap_addr = 0;
-            // Scan the PCI device's Capability List to find MSI or MSI-X entrie.
+
+            // PCIデバイスのCapability listを探索して、MSI または MSI-X エントリを見つける
             while(cap_addr != 0) {
                 auto header = ReadCapabilityHeader(dev, cap_addr);
                 if(header.bits.cap_id == kCapabilityMSI) {
@@ -273,5 +281,21 @@ namespace pci {
             bar | static_cast<uint64_t>(bar_upper) << 32,
             MAKE_ERROR(Error::kSuccess)
         };
+    }
+}
+
+void InitializePCI() {
+    if (auto err = pci::ScanAllBus()) {
+        Log(kError, "ScanAllBus: %s\n", err.Name());
+        exit(1);
+    }
+
+    for(int i = 0; i < pci::num_device; i++) {
+        const auto& dev = pci::devices[i];
+        auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
+        auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
+        Log(kDebug, "%d.%d.%d: vend %04x, class %08x, head %02x\n",
+            dev.bus, dev.device, dev.function,
+            vendor_id, class_code, dev.header_type);
     }
 }

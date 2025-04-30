@@ -1,7 +1,7 @@
 #include  <algorithm>
+#include "console.hpp"
+#include "logger.hpp"
 #include "layer.hpp"
-
-LayerManager* layer_manager;
 
 Layer::Layer(unsigned int id) : id_{id} {
 };
@@ -159,10 +159,52 @@ Layer* LayerManager::FindLayerByPosition(Vector2D<int> pos, unsigned int exclude
         return win_pos.x <= pos.x && pos.x <= win_end_pos.x &&
                win_pos.y <= pos.y && pos.y <= win_end_pos.y;
    };
-
+   // 上から順番に検索  
    auto it = std::find_if(layer_stack_.rbegin(), layer_stack_.rend(), pred);
    if(it == layer_stack_.rend()) {
         return nullptr;
    }
    return *it;
+}
+
+namespace {
+    FrameBuffer* screen;
+}
+  
+LayerManager* layer_manager;
+
+void InitializeLayer() {
+    const auto screen_size = ScreenSize();
+
+    // 背景ウィンドウの初期化と描画
+    auto bgwindow = std::make_shared<Window>(screen_size.x, screen_size.y, screen_config.pixel_format);
+    DrawDesktop(*bgwindow->Writer());
+
+    // コンソールウィンドウの初期化と描画
+    auto console_window = std::make_shared<Window>(
+            Console::kColumns * 8, Console::kRows * 16, screen_config.pixel_format);
+    console->SetWindow(console_window);
+
+    // 本物のフレームバッファ用クラスの初期化
+    screen = new FrameBuffer; 
+    if(auto err = screen->Initialize(screen_config)) { 
+        Log(kError, "failed to initialize frame buffer: %s at %s:%d\n",
+            err.Name(), err.File(), err.Line());
+    }
+
+    layer_manager = new LayerManager;
+    layer_manager->SetWriter(screen);
+
+    auto bglayer_id = layer_manager->NewLayer()
+        .SetWindow(bgwindow)
+        .Move({0, 0})
+        .ID();
+
+    auto console_window_layer_id = layer_manager->NewLayer()
+        .SetWindow(console_window)
+        .Move({0, 0})
+        .ID();
+    
+    layer_manager->UpDown(bglayer_id, 0);
+    layer_manager->UpDown(console_window_layer_id, 1);
 }

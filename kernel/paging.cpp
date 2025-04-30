@@ -8,10 +8,10 @@ namespace {
     const uint64_t kPageSize2M = 512 * kPageSize4K;
     const uint64_t kPageSize1G = 512 * kPageSize2M;
 
-    alignas(kPageSize4K) std::array<uint64_t, 512> pml4_table;
+    alignas(kPageSize4K) std::array<uint64_t, 512> pml4_table; // 4096の倍数アドレスにアラインメント(下位3bitは0)
     alignas(kPageSize4K) std::array<uint64_t, 512> pdp_table;
     alignas(kPageSize4K) 
-        std::array<std::array<uint64_t, 512>, kPageDirectoryCount> page_directory; // Array of page_directory ?
+        std::array<std::array<uint64_t, 512>, kPageDirectoryCount> page_directory;
 }
 
 void SetupIdentityPageTable() {
@@ -24,4 +24,10 @@ void SetupIdentityPageTable() {
             page_directory[i_pdpt][i_pd] = i_pdpt * kPageSize1G + i_pd * kPageSize2M | 0x083;
         }
     }
+    // pml4テーブルをレジスタに登録
+    SetCR3(reinterpret_cast<uint64_t>(&pml4_table[0]));
+}
+
+void InitializePaging() {
+    SetupIdentityPageTable();
 }

@@ -3,6 +3,8 @@
 #include <array>
 #include <sys/types.h>
 #include "error.hpp"
+#include "logger.hpp"
+#include "memory_map.hpp"
 
 namespace {
     constexpr unsigned long long operator"" _KiB(unsigned long long kib) {
@@ -55,6 +57,6 @@ class BitmapMemoryManager {
             void SetBit(FrameID frame, bool allocated);
 };
 
-Error InitializeHeap(BitmapMemoryManager& memory_manager);
-
 static const FrameID kNullFrame{std::numeric_limits<size_t>::max()};
+
+void InitializeMemoryManager(const MemoryMap& memory_map);

@@ -1,4 +1,5 @@
 #include "interrupt.hpp"
+#include "asmfunc.h"
 
 void NotifyEndOfInterrupt() {
     // Write to the address of the EOI (End Of Interrupt) register
@@ -15,3 +16,19 @@ void SetIDTEntry(InterruptDescriptor& desc, InterruptDescriptorAttribute attr,
     desc.segment_selector = segment_selector;
 }
 
+namespace {
+    std::deque<Message>* msg_queue;
+  
+    __attribute__((interrupt))
+    void IntHandlerXHCI(InterruptFrame* frame) {
+      msg_queue->push_back(Message{Message::kInterruptXHCI});
+      NotifyEndOfInterrupt();
+    }
+}
+
+void InitializeInterrupt(std::deque<Message>* msg_queue) {
+    ::msg_queue = msg_queue;
+    SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate,0),
+                reinterpret_cast<uint64_t>(IntHandlerXHCI), kKernelCS);
+    LoadIDT(sizeof(idt) - 1, reinterpret_cast<uintptr_t>(&idt[0]));
+}

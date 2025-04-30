@@ -21,13 +21,14 @@ namespace pci {
         uint8_t bus, device, function, header_type;
         ClassCode class_code;
     };
- 
+    
+    // PCIデバイスの拡張機能を表す
     union CapabilityHeader
     {
         uint32_t data;
         struct {
-            uint32_t cap_id : 8;
-            uint32_t next_ptr: 8;
+            uint32_t cap_id : 8;  // この拡張機能の種類(MSIなど)
+            uint32_t next_ptr: 8; // Capability構造へのポインタ
             uint32_t cap : 16;
         } __attribute__((packed)) bits;
     } __attribute__((packed));
@@ -124,3 +125,5 @@ namespace pci {
                                        uint8_t vector, unsigned int num_vector_exponent);
     MSICapability ReadMSICapability(const Device& dev, uint8_t cap_addr);   
 }
+
+void InitializePCI();

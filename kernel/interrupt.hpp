@@ -2,6 +2,9 @@
 
 #include <array>
 #include <cstdint>
+#include <deque>
+#include "message.hpp"
+#include "segment.hpp"
 #include "x86_descriptor.hpp"
 
 union InterruptDescriptorAttribute {
@@ -59,4 +62,6 @@ struct InterruptFrame {
     uint64_t rflags;
     uint64_t rsp;
     uint64_t ss;
-  };
+};
+
+void InitializeInterrupt(std::deque<Message>* msg_queue);
