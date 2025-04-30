@@ -1,5 +1,6 @@
 struct Message {
     enum Type {
-        kInterruptXHCI
+        kInterruptXHCI,
+        kInterruptAPICTimer
     } type;
 };

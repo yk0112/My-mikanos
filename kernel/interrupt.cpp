@@ -24,11 +24,24 @@ namespace {
       msg_queue->push_back(Message{Message::kInterruptXHCI});
       NotifyEndOfInterrupt();
     }
+    
+    __attribute__((interrupt))
+    void IntHandlerAPICTimer(InterruptFrame* frame) {
+      msg_queue->push_back(Message{Message::kInterruptAPICTimer});
+      NotifyEndOfInterrupt();
+    }
 }
 
+// 割り込み記述子テーブルの設定
 void InitializeInterrupt(std::deque<Message>* msg_queue) {
     ::msg_queue = msg_queue;
+    // xHCI用の割り込みハンドラ設定
     SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate,0),
                 reinterpret_cast<uint64_t>(IntHandlerXHCI), kKernelCS);
+
+    // local apicタイマ用の割り込みハンドラ設定
+    SetIDTEntry(idt[InterruptVector::kLAPICTimer], MakeIDTAttr(DescriptorType::kInterruptGate,0),
+                reinterpret_cast<uint64_t>(IntHandlerAPICTimer), kKernelCS);
+
     LoadIDT(sizeof(idt) - 1, reinterpret_cast<uintptr_t>(&idt[0]));
 }

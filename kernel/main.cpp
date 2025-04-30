@@ -79,6 +79,8 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     // MSI interrupt settings, USB driver initialization, xhc restart
     usb::xhci::Initialize();
 
+    InitializeLAPICTimer();
+
     // Create background and console window, and initialize layer manager
     InitializeLayer();
 
@@ -110,6 +112,9 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         switch (msg.type) {
         case Message::kInterruptXHCI:
             usb::xhci::ProcessEvents();
+            break;
+        case Message::kInterruptAPICTimer:
+            printk("Timer interrupt\n");
             break;
         default:
             Log(kError, "Unknown message type: %d\n", msg.type);
