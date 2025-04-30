@@ -204,7 +204,8 @@ void InitializeLayer() {
         .SetWindow(console_window)
         .Move({0, 0})
         .ID();
-    
+    console->SetLayerID(console_window_layer_id);
+
     layer_manager->UpDown(bglayer_id, 0);
     layer_manager->UpDown(console_window_layer_id, 1);
 }

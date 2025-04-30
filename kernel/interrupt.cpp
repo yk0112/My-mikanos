@@ -1,4 +1,5 @@
 #include "interrupt.hpp"
+#include "timer.hpp"
 #include "asmfunc.h"
 
 void NotifyEndOfInterrupt() {
@@ -27,7 +28,8 @@ namespace {
     
     __attribute__((interrupt))
     void IntHandlerAPICTimer(InterruptFrame* frame) {
-      msg_queue->push_back(Message{Message::kInterruptAPICTimer});
+      // msg_queue->push_back(Message{Message::kInterruptAPICTimer});
+      LAPICTimerOnInterrupt();
       NotifyEndOfInterrupt();
     }
 }

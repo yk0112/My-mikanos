@@ -9,9 +9,21 @@ namespace {
     volatile uint32_t& divide_config = *reinterpret_cast<uint32_t*>(0xfee003e0);
 }
 
+TimerManager* timer_manager;
+
+void TimerManager::Tick() {
+    ++tick_;
+}
+
+void LAPICTimerOnInterrupt() {
+    timer_manager->Tick();
+}
+
 void InitializeLAPICTimer() {
+    timer_manager = new TimerManager;
     divide_config = 0b1011;
     lvt_timer = (0b010 << 16) | InterruptVector::kLAPICTimer; // 周期モード、割り込み許可
+    initial_count = 0x1000000u;
 }
 
 void StartLAPICTimer() {
