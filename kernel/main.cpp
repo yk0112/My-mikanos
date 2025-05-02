@@ -20,6 +20,8 @@
 #include "memory_manager.hpp"
 #include "layer.hpp"
 #include "timer.hpp"
+#include "message.hpp"
+#include "acpi.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -55,7 +57,9 @@ void InitializeMainWindow() {
     layer_manager->UpDown(main_window_layer_id, std::numeric_limits<int>::max()); // 最上部に配置
 }
 
-extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config_ref, const MemoryMap& memory_map_ref) {
+extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config_ref, 
+                                   const MemoryMap& memory_map_ref,
+                                   const acpi::RSDP& acpi_table) {
     // Display background and Console
     InitializeGraphics(frame_buffer_config_ref);     
     InitializeConsole(); 
@@ -78,11 +82,7 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
    
     // MSI interrupt settings, USB driver initialization, xhc restart
     usb::xhci::Initialize();
-
-    InitializeLAPICTimer(*main_queue);
-    timer_manager->AddTimer(Timer{200, 2});
-    timer_manager->AddTimer(Timer{600, -1});
-
+    
     // Create background and console window, and initialize layer manager
     InitializeLayer();
 
@@ -90,6 +90,11 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     InitializeMouse(); 
 
     layer_manager->Draw({{0, 0}, ScreenSize()});
+    
+    acpi::Initialize(acpi_table);
+    InitializeLAPICTimer(*main_queue);
+    timer_manager->AddTimer(Timer{200, 2});
+    timer_manager->AddTimer(Timer{600, -1});
 
     char str[128];
 

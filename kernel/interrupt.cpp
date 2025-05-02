@@ -2,6 +2,8 @@
 #include "timer.hpp"
 #include "asmfunc.h"
 
+std::array<InterruptDescriptor, 256> idt;
+
 void NotifyEndOfInterrupt() {
     // Write to the address of the EOI (End Of Interrupt) register
     volatile auto end_of_interrupt = reinterpret_cast<uint32_t*>(0xfee000b0);
@@ -28,7 +30,6 @@ namespace {
     
     __attribute__((interrupt))
     void IntHandlerAPICTimer(InterruptFrame* frame) {
-      // msg_queue->push_back(Message{Message::kInterruptAPICTimer});
       LAPICTimerOnInterrupt();
       NotifyEndOfInterrupt();
     }

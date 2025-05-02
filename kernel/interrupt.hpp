@@ -29,9 +29,10 @@ struct InterruptDescriptor {
     uint32_t reserved;
 } __attribute__((packed));
 
-inline std::array<InterruptDescriptor, 256> idt;
+extern std::array<InterruptDescriptor, 256> idt;
 
 void NotifyEndOfInterrupt();
+
 void SetIDTEntry(InterruptDescriptor& desc, InterruptDescriptorAttribute attr, 
     uint64_t offset, uint16_t segment_selector);
 
