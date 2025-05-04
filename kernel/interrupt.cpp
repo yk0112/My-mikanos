@@ -38,7 +38,7 @@ namespace {
 // 割り込み記述子テーブルの設定
 void InitializeInterrupt(std::deque<Message>* msg_queue) {
     ::msg_queue = msg_queue;
-    // xHCI用の割り込みハンドラ設定
+    // xHCI用の割り込みハンドラ設定(マウスやキーボード操作時に呼び出される)
     SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate,0),
                 reinterpret_cast<uint64_t>(IntHandlerXHCI), kKernelCS);
 

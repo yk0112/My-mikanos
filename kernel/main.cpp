@@ -22,6 +22,7 @@
 #include "timer.hpp"
 #include "message.hpp"
 #include "acpi.hpp"
+#include "keyboard.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -93,8 +94,9 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     
     acpi::Initialize(acpi_table);
     InitializeLAPICTimer(*main_queue);
-    timer_manager->AddTimer(Timer{200, 2});
-    timer_manager->AddTimer(Timer{600, -1});
+ 
+    // Register keyboard event handler with the driver
+    InitializeKeyboard(*main_queue);
 
     char str[128];
 
@@ -120,13 +122,13 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
 
         switch (msg.type) {
         case Message::kInterruptXHCI:
-            usb::xhci::ProcessEvents();
+            usb::xhci::ProcessEvents(); 
             break;
         case Message::kTimerTimeout:
-            printk("Timer: timeout = %lu, value = %d\n", msg.arg.timer.timeout, msg.arg.timer.value);
-            if(msg.arg.timer.value > 0) {
-                timer_manager->AddTimer(Timer(
-                    msg.arg.timer.timeout + 100, msg.arg.timer.value + 1));
+            break;
+        case Message::kKeyPush:
+            if (msg.arg.keyboard.ascii != 0) {
+              printk("%c", msg.arg.keyboard.ascii);
             }
             break;
         default:
