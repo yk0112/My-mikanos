@@ -33,7 +33,7 @@ namespace usb {
   }
 
   void HIDKeyboardDriver::SubscribeKeyPush(
-      std::function<void (uint8_t modifier, uint8_t keycode)> observer) {
+      std::function<ObserverType> observer) {
     observers_[num_observers_++] = observer;
   }
 

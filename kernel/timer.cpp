@@ -12,7 +12,7 @@ namespace {
 }
 
 TimerManager* timer_manager;
-unsigned long lapic_timer_freq; 
+unsigned long lapic_timer_freq; // APICタイマの周波数
 
 void TimerManager::Tick() {
     ++tick_;
