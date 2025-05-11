@@ -24,6 +24,7 @@
 #include "message.hpp"
 #include "acpi.hpp"
 #include "keyboard.hpp"
+#include "task.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -122,16 +123,6 @@ void InitializeTaskBWindow() {
     layer_manager->UpDown(task_b_window_layer_id, std::numeric_limits<int>::max());
 }
 
-struct TaskContext {
-    uint64_t cr3, rip, rflags, reserved1;
-    uint64_t cs, ss, fs, gs;
-    uint64_t rax, rbx, rcx, rdx, rdi, rsi, rsp, rbp;
-    uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-    std::array<uint8_t, 512> fxsave_area;
-} __attribute__((packed));
-
-alignas(16) TaskContext task_b_ctx, task_a_ctx;
-
 void TaskB(int task_id, int data) {
     printk("TaskB: task_id=%d, data=%d\n", task_id, data);
     char str[128];
@@ -142,11 +133,8 @@ void TaskB(int task_id, int data) {
         FillRectangle(*task_b_window->Writer(), {24, 28}, {8 * 10, 16}, {0xc6, 0xc6, 0xc6});
         WriteString(*task_b_window->Writer(), {24, 28}, str, {0,0,0});
         layer_manager->Draw(task_b_window_layer_id);
-        SwitchContext(&task_a_ctx, &task_b_ctx);
     }
-    
 }
-
 
 extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config_ref, 
                                    const MemoryMap& memory_map_ref,
@@ -180,6 +168,7 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     InitializeMainWindow();
     InitializeTextWindow();
     InitializeMouse(); 
+    InitializeTaskBWindow();
 
     layer_manager->Draw({{0, 0}, ScreenSize()});
     
@@ -202,7 +191,7 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     memset(&task_b_ctx, 0, sizeof(task_b_ctx));
     task_b_ctx.rip = reinterpret_cast<uint64_t>(TaskB);
     task_b_ctx.rdi = 1;
-    task_b_ctx.rsi = 42;
+    task_b_ctx.rsi = 43;
     task_b_ctx.cr3 = GetCR3();
     task_b_ctx.rflags = 0x202;  // 0b001000000010, 割り込みを有効化
     task_b_ctx.cs = kKernelCS;
@@ -210,8 +199,9 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     task_b_ctx.rsp = (task_b_stack_end & ~0xflu) - 8;
     *reinterpret_cast<uint32_t*>(&task_b_ctx.fxsave_area[24]) = 0x1f80;
 
+    InitializeTask();
     char str[128];
-
+    
     while(true) {
         __asm__("cli"); // Disable the interrupt flag for data race
         const auto tick = timer_manager->CurrentTick();
@@ -224,8 +214,7 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
 
         __asm__("cli"); 
         if(main_queue->size() ==  0) {
-            __asm__("sti");
-            SwitchContext(&task_b_ctx, &task_a_ctx);
+            __asm__("sti\n\thlt");
             continue;
         }
         

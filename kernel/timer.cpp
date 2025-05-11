@@ -2,6 +2,7 @@
 #include "timer.hpp"
 #include "interrupt.hpp"
 #include "acpi.hpp"
+#include "task.hpp"
 
 namespace {
     const uint32_t kCountMax = 0xffffffffu;
@@ -14,20 +15,31 @@ namespace {
 TimerManager* timer_manager;
 unsigned long lapic_timer_freq; // APICタイマの周波数
 
-void TimerManager::Tick() {
+bool TimerManager::Tick() {
     ++tick_;
+    bool task_timer_timeout = false;
     // 割り込みのたびにtime outしたタイマがないか調べる
     while(true) {
         const auto& t = timers_.top();
         if(t.Timeout() > tick_) {
             break;
         }
+
+        if(t.Value() == kTaskTimerValue) {
+            task_timer_timeout = true;
+            timers_.pop();
+            timers_.push(Timer{tick_ + kTaskTimerPeriod, kTaskTimerValue});
+            continue;
+        }
+
         Message m{Message::kTimerTimeout};
         m.arg.timer.timeout = t.Timeout();
         m.arg.timer.value = t.Value();
         msg_queue_.push_back(m);
         timers_.pop();
     }
+
+    return task_timer_timeout;
 }
 
 TimerManager::TimerManager(std::deque<Message>& msg_deque) : msg_queue_{msg_deque} {
@@ -42,7 +54,12 @@ Timer::Timer(unsigned long timeout, int value) : timeout_{timeout}, value_{value
 }
 
 void LAPICTimerOnInterrupt() {
-    timer_manager->Tick();
+    const bool task_timer_timeout = timer_manager->Tick();
+    NotifyEndOfInterrupt();
+
+    if(task_timer_timeout) {
+        SwitchTask();
+    }
 }
 
 void InitializeLAPICTimer(std::deque<Message>& msg_queue) {

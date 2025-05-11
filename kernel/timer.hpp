@@ -21,7 +21,7 @@ class TimerManager {
     public:
         TimerManager(std::deque<Message>& msg_queue);
         void AddTimer(const Timer& timer);
-        void Tick();
+        bool Tick();
         unsigned long CurrentTick() const { return tick_; }
     private:
         volatile unsigned long tick_{0};
@@ -32,6 +32,9 @@ class TimerManager {
 extern TimerManager* timer_manager;
 extern unsigned long lapic_timer_freq;  // APICタイマの1秒間あたりのカウント数(周波数)
 const int kTimerFreq = 100;
+const int kTaskTimerPeriod = static_cast<int>(kTimerFreq * 0.02);  // タスクの切り替え周期
+const int kTaskTimerValue = std::numeric_limits<int>::min();
+
 
 void LAPICTimerOnInterrupt();
 void InitializeLAPICTimer(std::deque<Message>& msg_queue);

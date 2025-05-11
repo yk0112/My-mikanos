@@ -88,7 +88,7 @@ SwitchContext:   ; void SwitchContext(void* next_ctx, void* current_ctx)
     mov [rsi + 0x68], rsi
 
     lea rax, [rsp + 8]
-    mov [rsi + 0x70], rax
+    mov [rsi + 0x70], rax  
     mov [rsi + 0x78], rbp
 
     mov [rsi + 0x80], r8
@@ -101,11 +101,11 @@ SwitchContext:   ; void SwitchContext(void* next_ctx, void* current_ctx)
     mov [rsi + 0xb8], r15
 
     mov rax, cr3
-    mov [rsi + 0x00], rax
+    mov [rsi + 0x00], rax  
     mov rax, [rsp]
-    mov [rsi + 0x80], rax
+    mov [rsi + 0x08], rax  
     pushfq
-    pop qword [rsi + 0x10]
+    pop qword [rsi + 0x10] 
 
     mov ax, cs
     mov [rsi + 0x20], rax
@@ -115,22 +115,22 @@ SwitchContext:   ; void SwitchContext(void* next_ctx, void* current_ctx)
     mov [rsi + 0x30], rcx
     mov dx, gs
     mov [rsi + 0x38], rdx
-    
-    fxsave [rsi + 0xc0]
-    
+
+    fxsave [rsi + 0xc0]    
+
     ; iret用のスタックを構築
     push qword [rdi + 0x28]  ; SS
     push qword [rdi + 0x70]  ; RSP
     push qword [rdi + 0x10]  ; RFLAGS
     push qword [rdi + 0x20]  ; CS
-    push qword [rdi + 0x80]  ; RIP
+    push qword [rdi + 0x08]  ; RIP
 
     ; レジスタの復元    
     fxrstor [rdi + 0xc0]
 
     mov rax, [rdi + 0x00]
     mov cr3, rax
-    mov rax, [0x30]
+    mov rax, [rdi + 0x30]
     mov fs, ax
     mov rax, [rdi + 0x38]
     mov gs, ax
