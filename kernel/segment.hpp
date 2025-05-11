@@ -31,7 +31,7 @@ void SetDataSegment(SegmentDescriptor& desc, DescriptorType type,
 void SetCodeSegment(SegmentDescriptor& desc, DescriptorType type, 
   unsigned int descriptor_privilege_level, uint32_t base, uint32_t limit);
 
-const uint16_t kKernelCS = 1 << 3;
+const uint16_t kKernelCS = 1 << 3;  // セグメントセレクタの形式に変換
 const uint16_t kKernelSS = 2 << 3;
 const uint16_t kKernelDS = 0;
 const uint16_t kTSS = 5 << 3;

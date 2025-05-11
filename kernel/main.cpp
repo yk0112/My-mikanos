@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 #include <numeric>
 #include <vector>
 
@@ -108,6 +109,45 @@ void InputTextWindow(char c) {
     layer_manager->Draw(text_window_layer_id);
 }
 
+std::shared_ptr<Window> task_b_window;
+unsigned int task_b_window_layer_id;
+void InitializeTaskBWindow() {
+    task_b_window = std::make_shared<Window>(160, 52, screen_config.pixel_format);
+    DrawWindow(*task_b_window->Writer(), "TaskB Window");
+    task_b_window_layer_id = layer_manager->NewLayer()
+                             .SetWindow(task_b_window)
+                             .SetDraggable(true)
+                             .Move({100, 100})
+                             .ID();
+    layer_manager->UpDown(task_b_window_layer_id, std::numeric_limits<int>::max());
+}
+
+struct TaskContext {
+    uint64_t cr3, rip, rflags, reserved1;
+    uint64_t cs, ss, fs, gs;
+    uint64_t rax, rbx, rcx, rdx, rdi, rsi, rsp, rbp;
+    uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
+    std::array<uint8_t, 512> fxsave_area;
+} __attribute__((packed));
+
+alignas(16) TaskContext task_b_ctx, task_a_ctx;
+
+void TaskB(int task_id, int data) {
+    printk("TaskB: task_id=%d, data=%d\n", task_id, data);
+    char str[128];
+    int count = 0;
+    while (true) {
+        ++count;
+        sprintf(str, "%010d", count);
+        FillRectangle(*task_b_window->Writer(), {24, 28}, {8 * 10, 16}, {0xc6, 0xc6, 0xc6});
+        WriteString(*task_b_window->Writer(), {24, 28}, str, {0,0,0});
+        layer_manager->Draw(task_b_window_layer_id);
+        SwitchContext(&task_a_ctx, &task_b_ctx);
+    }
+    
+}
+
+
 extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config_ref, 
                                    const MemoryMap& memory_map_ref,
                                    const acpi::RSDP& acpi_table) {
@@ -154,13 +194,28 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
 
     // Register keyboard event handler with the driver
     InitializeKeyboard(*main_queue);
+    
+    // Set taskB context
+    std::vector<uint64_t> task_b_stack(1024);
+    uint64_t task_b_stack_end = reinterpret_cast<uint64_t>(&task_b_stack[1024]);
+
+    memset(&task_b_ctx, 0, sizeof(task_b_ctx));
+    task_b_ctx.rip = reinterpret_cast<uint64_t>(TaskB);
+    task_b_ctx.rdi = 1;
+    task_b_ctx.rsi = 42;
+    task_b_ctx.cr3 = GetCR3();
+    task_b_ctx.rflags = 0x202;  // 0b001000000010, 割り込みを有効化
+    task_b_ctx.cs = kKernelCS;
+    task_b_ctx.ss = kKernelSS;
+    task_b_ctx.rsp = (task_b_stack_end & ~0xflu) - 8;
+    *reinterpret_cast<uint32_t*>(&task_b_ctx.fxsave_area[24]) = 0x1f80;
 
     char str[128];
 
     while(true) {
         __asm__("cli"); // Disable the interrupt flag for data race
         const auto tick = timer_manager->CurrentTick();
-        __asm__("sti");  // Wait until the interrupt occur
+        __asm__("sti");  // Enable the interrupt
 
         sprintf(str, "%010lu", tick);
         FillRectangle(*main_window->Writer(), {24, 28}, {8 * 10, 16}, {0xc6, 0xc6, 0xc6});
@@ -169,7 +224,8 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
 
         __asm__("cli"); 
         if(main_queue->size() ==  0) {
-            __asm__("sti\n\thlt");  // Wait until the interrupt occur
+            __asm__("sti");
+            SwitchContext(&task_b_ctx, &task_a_ctx);
             continue;
         }
         
