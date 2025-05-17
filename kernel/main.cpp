@@ -123,7 +123,7 @@ void InitializeTaskBWindow() {
     layer_manager->UpDown(task_b_window_layer_id, std::numeric_limits<int>::max());
 }
 
-void TaskB(int task_id, int data) {
+void TaskB(uint64_t task_id, int64_t data) {
     printk("TaskB: task_id=%d, data=%d\n", task_id, data);
     char str[128];
     int count = 0;
@@ -134,6 +134,11 @@ void TaskB(int task_id, int data) {
         WriteString(*task_b_window->Writer(), {24, 28}, str, {0,0,0});
         layer_manager->Draw(task_b_window_layer_id);
     }
+}
+
+void TaskIdle(uint64_t task_id, int64_t data) {
+    printk("TaskIdle: task_id=%lu, data=%lx\n", task_id, data);
+    while (true) __asm__("hlt");
 }
 
 extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config_ref, 
@@ -167,8 +172,8 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
 
     InitializeMainWindow();
     InitializeTextWindow();
-    InitializeMouse(); 
     InitializeTaskBWindow();
+    InitializeMouse(); 
 
     layer_manager->Draw({{0, 0}, ScreenSize()});
     
@@ -184,24 +189,13 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     // Register keyboard event handler with the driver
     InitializeKeyboard(*main_queue);
     
-    // Set taskB context
-    std::vector<uint64_t> task_b_stack(1024);
-    uint64_t task_b_stack_end = reinterpret_cast<uint64_t>(&task_b_stack[1024]);
-
-    memset(&task_b_ctx, 0, sizeof(task_b_ctx));
-    task_b_ctx.rip = reinterpret_cast<uint64_t>(TaskB);
-    task_b_ctx.rdi = 1;
-    task_b_ctx.rsi = 43;
-    task_b_ctx.cr3 = GetCR3();
-    task_b_ctx.rflags = 0x202;  // 0b001000000010, 割り込みを有効化
-    task_b_ctx.cs = kKernelCS;
-    task_b_ctx.ss = kKernelSS;
-    task_b_ctx.rsp = (task_b_stack_end & ~0xflu) - 8;
-    *reinterpret_cast<uint32_t*>(&task_b_ctx.fxsave_area[24]) = 0x1f80;
-
+    // Initialize task manager
     InitializeTask();
-    char str[128];
+    task_manager->NewTask().InitContext(TaskB, 45);
+    task_manager->NewTask().InitContext(TaskIdle, 0xdeadbeef);
+    task_manager->NewTask().InitContext(TaskIdle, 0xcafebabe);
     
+    char str[128];
     while(true) {
         __asm__("cli"); // Disable the interrupt flag for data race
         const auto tick = timer_manager->CurrentTick();
