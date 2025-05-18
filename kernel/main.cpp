@@ -190,10 +190,13 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     InitializeKeyboard(*main_queue);
     
     // Initialize task manager
-    InitializeTask();
-    task_manager->NewTask().InitContext(TaskB, 45);
-    task_manager->NewTask().InitContext(TaskIdle, 0xdeadbeef);
-    task_manager->NewTask().InitContext(TaskIdle, 0xcafebabe);
+    InitializeTask(); // 現在のコンテキストを生成
+    const uint64_t taskb_id = task_manager->NewTask()
+                                    .InitContext(TaskB, 45)
+                                    .Wakeup()
+                                    .ID();
+    task_manager->NewTask().InitContext(TaskIdle, 0xdeadbeef).Wakeup();
+    task_manager->NewTask().InitContext(TaskIdle, 0xcafebabe).Wakeup();
     
     char str[128];
     while(true) {
@@ -232,6 +235,12 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
             break;
         case Message::kKeyPush:
             InputTextWindow(msg.arg.keyboard.ascii);
+            if(msg.arg.keyboard.ascii == 's') {
+                printk("sleep TaskB: %s\n", task_manager->Sleep(taskb_id).Name()); 
+            }
+            else if (msg.arg.keyboard.ascii == 'w') {
+                printk("wakeup TaskB: %s\n", task_manager->Wakeup(taskb_id).Name());
+            }
             break;
         default:
             Log(kError, "Unknown message type: %d\n", msg.type);

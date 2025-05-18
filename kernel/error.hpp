@@ -26,6 +26,7 @@ class Error {
             kNoWaiter,
             kNoPCIMSI,
             kUnknownPixelFormat,
+            kNoSuchTask,
             kLastOfCode,  // always last elem
         };
 
