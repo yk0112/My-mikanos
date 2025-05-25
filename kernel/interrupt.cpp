@@ -1,6 +1,7 @@
 #include "interrupt.hpp"
 #include "timer.hpp"
 #include "asmfunc.h"
+#include "task.hpp"
 
 std::array<InterruptDescriptor, 256> idt;
 
@@ -20,11 +21,10 @@ void SetIDTEntry(InterruptDescriptor& desc, InterruptDescriptorAttribute attr,
 }
 
 namespace {
-    std::deque<Message>* msg_queue;
   
     __attribute__((interrupt))
     void IntHandlerXHCI(InterruptFrame* frame) {
-      msg_queue->push_back(Message{Message::kInterruptXHCI});
+      task_manager->SendMessage(1, Message{Message::kInterruptXHCI});
       NotifyEndOfInterrupt();
     }
     
@@ -35,8 +35,7 @@ namespace {
 }
 
 // 割り込み記述子テーブルの設定
-void InitializeInterrupt(std::deque<Message>* msg_queue) {
-    ::msg_queue = msg_queue;
+void InitializeInterrupt() {
     // xHCI用の割り込みハンドラ設定(マウスやキーボード操作時に呼び出される)
     SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate,0),
                 reinterpret_cast<uint64_t>(IntHandlerXHCI), kKernelCS);

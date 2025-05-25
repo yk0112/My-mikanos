@@ -31,7 +31,6 @@
 #include "usb/xhci/xhci.hpp"
 #include "usb/xhci/trb.hpp"
 
-std::deque<Message>* main_queue;
 alignas(16) uint8_t kernel_main_stack[1024 * 1024];
 
 int printk(const char* format, ...) {
@@ -158,39 +157,34 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     InitializeMemoryManager(memory_map_ref);
 
     // Make Interrupt Descriptor Table(IDT) and MSI interrupt Settings.
-    ::main_queue = new std::deque<Message>(32);
-    InitializeInterrupt(main_queue);
+    InitializeInterrupt();
 
     // Scan all PCI devices info
     InitializePCI();  
    
-    // MSI interrupt settings, USB driver initialization, xhc restart
-    usb::xhci::Initialize();
-    
+        
     // Create background and console window, and initialize layer manager
     InitializeLayer();
 
     InitializeMainWindow();
     InitializeTextWindow();
     InitializeTaskBWindow();
-    InitializeMouse(); 
-
     layer_manager->Draw({{0, 0}, ScreenSize()});
-    
+   
+    // initialize local APIC timer, Set a timer for cursor
     acpi::Initialize(acpi_table);
-    InitializeLAPICTimer(*main_queue);
+    InitializeLAPICTimer();
     const int kTextboxCursorTimer = 1;
     const int kTimer05sec = 50; // 0.5s = 10ms * 50
     __asm__("cli");
     timer_manager->AddTimer(Timer{kTimer05sec, kTextboxCursorTimer});
     __asm__("sti");
     bool textbox_cursor_visible = false;
-
-    // Register keyboard event handler with the driver
-    InitializeKeyboard(*main_queue);
-    
+        
     // Initialize task manager
     InitializeTask(); // 現在のコンテキストを生成
+    Task& main_task = task_manager->CurrentTask();
+
     const uint64_t taskb_id = task_manager->NewTask()
                                     .InitContext(TaskB, 45)
                                     .Wakeup()
@@ -198,6 +192,12 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     task_manager->NewTask().InitContext(TaskIdle, 0xdeadbeef).Wakeup();
     task_manager->NewTask().InitContext(TaskIdle, 0xcafebabe).Wakeup();
     
+    // MSI interrupt settings, USB driver initialization, xhc restart
+    usb::xhci::Initialize();
+    InitializeMouse(); 
+    // Register keyboard event handler with the driver
+    InitializeKeyboard();
+
     char str[128];
     while(true) {
         __asm__("cli"); // Disable the interrupt flag for data race
@@ -210,23 +210,23 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         layer_manager->Draw(main_window_layer_id);
 
         __asm__("cli"); 
-        if(main_queue->size() ==  0) {
-            __asm__("sti\n\thlt");
+        auto msg = main_task.ReceiveMessage();
+        if(!msg) {
+            main_task.Sleep();
+            __asm__("sti");
             continue;
         }
         
-        Message msg = main_queue->front();
-        main_queue->pop_front();
         __asm__("sti");   // Enable the interrupt flag
 
-        switch (msg.type) {
+        switch (msg->type) {
         case Message::kInterruptXHCI:
             usb::xhci::ProcessEvents(); 
             break;
         case Message::kTimerTimeout:
-            if(msg.arg.timer.value == kTextboxCursorTimer) { // カーソル用のタイマ
+            if(msg->arg.timer.value == kTextboxCursorTimer) { // カーソル用のタイマ
                 __asm__("cli");
-                timer_manager->AddTimer(Timer{msg.arg.timer.timeout + kTimer05sec, kTextboxCursorTimer});
+                timer_manager->AddTimer(Timer{msg->arg.timer.timeout + kTimer05sec, kTextboxCursorTimer});
                 __asm__("sti");
                 textbox_cursor_visible = !textbox_cursor_visible;
                 DrawTextCursor(textbox_cursor_visible);
@@ -234,16 +234,16 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
             }
             break;
         case Message::kKeyPush:
-            InputTextWindow(msg.arg.keyboard.ascii);
-            if(msg.arg.keyboard.ascii == 's') {
+            InputTextWindow(msg->arg.keyboard.ascii);
+            if(msg->arg.keyboard.ascii == 's') {
                 printk("sleep TaskB: %s\n", task_manager->Sleep(taskb_id).Name()); 
             }
-            else if (msg.arg.keyboard.ascii == 'w') {
+            else if (msg->arg.keyboard.ascii == 'w') {
                 printk("wakeup TaskB: %s\n", task_manager->Wakeup(taskb_id).Name());
             }
             break;
         default:
-            Log(kError, "Unknown message type: %d\n", msg.type);
+            Log(kError, "Unknown message type: %d\n", msg->type);
         }
     }
 }
