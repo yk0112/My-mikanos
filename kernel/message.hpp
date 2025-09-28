@@ -1,23 +1,38 @@
 #pragma once
 #include <cstdint> 
 
+enum class LayerOperation {
+  Move, MoveRelative, Draw
+};
+
 struct Message {
-    enum Type {
-      kInterruptXHCI,
-      kTimerTimeout,
-      kKeyPush,
-    } type;
+  enum Type {
+    kInterruptXHCI,
+    kTimerTimeout,
+    kKeyPush,
+    kLayer,
+    kLayerFinish
+  } type;
 
-    union {
-      struct {
-          unsigned long timeout;
-          int value;
-      } timer;
+  uint64_t src_task;
 
-      struct {
-          uint8_t modifier;
-          uint8_t keycode;
-          char ascii;
-      } keyboard;
+  union {
+    struct {
+      unsigned long timeout;
+      int value;
+    } timer;
+
+    struct {
+      uint8_t modifier;
+      uint8_t keycode;
+      char ascii;
+    } keyboard;
+
+    struct {
+      LayerOperation op;
+      unsigned int layer_id;
+      int x, y;
+    } layer;
+
   } arg;
 };
