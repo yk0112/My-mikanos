@@ -94,6 +94,7 @@ Task& TaskManager::NewTask() {
 void TaskManager::SwitchTask(bool current_sleep) {
     auto& level_queue = running_[current_level_];
     Task* current_task = level_queue.front();
+    level_queue.pop_front();
     if (!current_sleep) {
         level_queue.push_back(current_task);
     }
