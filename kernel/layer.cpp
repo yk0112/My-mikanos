@@ -44,17 +44,6 @@ Layer& LayerManager::NewLayer() {
     return *layers_.back();
 }
 
-Layer* LayerManager::FindLayer(unsigned int id) {
-    auto pred = [id](const std::unique_ptr<Layer>& elem) {
-        return elem->ID() == id;
-        };
-    auto it = std::find_if(layers_.begin(), layers_.end(), pred);
-    if (it == layers_.end()) {
-        return nullptr;
-    }
-    return it->get();
-}
-
 Vector2D<int> Layer::GetPosition() const {
     return pos_;
 }
@@ -167,11 +156,61 @@ Layer* LayerManager::FindLayerByPosition(Vector2D<int> pos, unsigned int exclude
     return *it;
 }
 
+Layer* LayerManager::FindLayer(unsigned int id) {
+    auto pred = [id](const std::unique_ptr<Layer>& elem) {
+        return elem->ID() == id;
+        };
+
+    auto it = std::find_if(layers_.begin(), layers_.end(), pred);
+    if (it == layers_.end()) {
+        return nullptr;
+    }
+    return it->get();
+}
+
+int LayerManager::GetHeight(unsigned int id) {
+    for (int h = 0; h < layer_stack_.size(); h++) {
+        if (layer_stack_[h]->ID() == id) {
+            return h;
+        }
+    }
+    return -1;
+}
+
+ActiveLayer::ActiveLayer(LayerManager& manager) : manager_{ manager } {
+}
+
+void ActiveLayer::SetMouseLayer(unsigned int mouse_layer) {
+    mouse_layer_ = mouse_layer;
+}
+
+void ActiveLayer::Activate(unsigned int layer_id) {
+    if (active_layer_ == layer_id) {
+        return;
+    }
+
+    if (active_layer_ > 0) {
+        Layer* layer = manager_.FindLayer(active_layer_);
+        layer->GetWindow()->Deactivate();
+        manager_.Draw(active_layer_);
+    }
+
+    active_layer_ = layer_id;
+    if (active_layer_ > 0) {
+        Layer* layer = manager_.FindLayer(active_layer_);
+        layer->GetWindow()->Activate();
+        manager_.UpDown(active_layer_, manager_.GetHeight(mouse_layer_) - 1);
+        manager_.Draw(active_layer_);
+    }
+}
+
 namespace {
     FrameBuffer* screen;
 }
 
 LayerManager* layer_manager;
+
+ActiveLayer* active_layer;
 
 void InitializeLayer() {
     const auto screen_size = ScreenSize();
@@ -208,6 +247,8 @@ void InitializeLayer() {
 
     layer_manager->UpDown(bglayer_id, 0);
     layer_manager->UpDown(console_window_layer_id, 1);
+
+    active_layer = new ActiveLayer{ *layer_manager };
 }
 
 void ProcessLayerMessage(const Message& msg) {

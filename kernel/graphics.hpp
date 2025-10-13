@@ -3,7 +3,7 @@
 #include "frame_buffer_config.hpp"
 
 struct PixelColor {
-    uint8_t r,g,b;
+    uint8_t r, g, b;
 };
 
 constexpr PixelColor ToColor(uint32_t c) {
@@ -25,7 +25,7 @@ inline bool operator!=(const PixelColor& lhs, const PixelColor& rhs) {
 template <typename T>
 struct Vector2D {
     T x, y;
-    
+
     template <typename U>
     Vector2D<T>& operator += (const Vector2D<U>& rhs) {
         x += rhs.x;
@@ -53,18 +53,18 @@ struct Vector2D {
 };
 
 template<typename T, typename U>
-auto operator+(const Vector2D<T>& lhs, const Vector2D<U>& rhs) -> Vector2D<decltype(lhs.x + rhs.x)>{
-    return {lhs.x + rhs.x, lhs.y + rhs.y};
-} 
+auto operator+(const Vector2D<T>& lhs, const Vector2D<U>& rhs) -> Vector2D<decltype(lhs.x + rhs.x)> {
+    return { lhs.x + rhs.x, lhs.y + rhs.y };
+}
 
 template<typename T>
 Vector2D<T> ElementMax(const Vector2D<T>& lhs, const Vector2D<T>& rhs) {
-    return {std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y)};
+    return { std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y) };
 }
 
 template<typename T>
 Vector2D<T> ElementMin(const Vector2D<T>& lhs, const Vector2D<T>& rhs) {
-    return {std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y)};
+    return { std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y) };
 }
 
 template<typename T>
@@ -77,56 +77,56 @@ Rectangle<T> operator&(const Rectangle<T>& lhs, const Rectangle<U>& rhs) {
     const auto lhs_end = lhs.pos + lhs.size;
     const auto rhs_end = rhs.pos + rhs.size;
     // Not overlap
-    if(lhs_end.x < rhs.pos.x || lhs_end.y < rhs.pos.y ||
-       rhs_end.x < lhs.pos.x || rhs_end.y < lhs.pos.y) {
-        return {{0, 0}, {0, 0}};
+    if (lhs_end.x < rhs.pos.x || lhs_end.y < rhs.pos.y ||
+        rhs_end.x < lhs.pos.x || rhs_end.y < lhs.pos.y) {
+        return { {0, 0}, {0, 0} };
     }
 
     auto new_pos = ElementMax(lhs.pos, rhs.pos);
     auto new_size = ElementMin(lhs_end, rhs_end) - new_pos;
-    return {new_pos, new_size};
+    return { new_pos, new_size };
 }
 
 class PixelWriter {
-    public:
-        virtual ~PixelWriter() = default; 
-        virtual void Write(Vector2D<int> pos, const PixelColor& c) = 0; // 純粋仮想関数
-        virtual int Width() const = 0;
-        virtual int Height() const = 0;
+public:
+    virtual ~PixelWriter() = default;
+    virtual void Write(Vector2D<int> pos, const PixelColor& c) = 0;
+    virtual int Width() const = 0;
+    virtual int Height() const = 0;
 };
 
 class FrameBufferWriter : public PixelWriter {
-    public:
-        FrameBufferWriter(const FrameBufferConfig& config) : config_{config} {}
-        virtual ~FrameBufferWriter() = default; 
-        virtual int Width() const override { return config_.horizontal_resolution; }
-        virtual int Height() const override { return config_.vertical_resolution; }
-    protected:
-        uint8_t* PixelAt(Vector2D<int> pos) {
-            return config_.frame_buffer + 4 * (config_.pixels_per_scan_line * pos.y + pos.x);
-        }
-    private:
-        const FrameBufferConfig& config_;
+public:
+    FrameBufferWriter(const FrameBufferConfig& config) : config_{ config } {}
+    virtual ~FrameBufferWriter() = default;
+    virtual int Width() const override { return config_.horizontal_resolution; }
+    virtual int Height() const override { return config_.vertical_resolution; }
+protected:
+    uint8_t* PixelAt(Vector2D<int> pos) {
+        return config_.frame_buffer + 4 * (config_.pixels_per_scan_line * pos.y + pos.x);
+    }
+private:
+    const FrameBufferConfig& config_;
 };
 
 class RGBResv8BitPerColorPixelWriter : public FrameBufferWriter {
-    public:
-        using FrameBufferWriter::FrameBufferWriter; // 継承コンストラクタ
-        virtual void Write(Vector2D<int> pos, const PixelColor& c) override;
+public:
+    using FrameBufferWriter::FrameBufferWriter; // 継承コンストラクタ
+    virtual void Write(Vector2D<int> pos, const PixelColor& c) override;
 };
 
 class BGRResv8BitPerColorPixelWriter : public FrameBufferWriter {
-    public:
-        using FrameBufferWriter::FrameBufferWriter; // 継承コンストラクタ
-        virtual void Write(Vector2D<int> pos, const PixelColor& c) override;
+public:
+    using FrameBufferWriter::FrameBufferWriter; // 継承コンストラクタ
+    virtual void Write(Vector2D<int> pos, const PixelColor& c) override;
 };
 
 void FillRectangle(PixelWriter& writer, const Vector2D<int>& pos, const Vector2D<int>& size, const PixelColor& c);
 
 void DrawRectangle(PixelWriter& writer, const Vector2D<int>& pos, const Vector2D<int>& size, const PixelColor& c);
 
-const PixelColor kDesktopBGColor{45, 118, 237};
-const PixelColor kDesktopFGColor{255, 255, 255};
+const PixelColor kDesktopBGColor{ 45, 118, 237 };
+const PixelColor kDesktopFGColor{ 255, 255, 255 };
 
 void DrawDesktop(PixelWriter& writer);
 
