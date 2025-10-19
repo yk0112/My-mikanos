@@ -25,6 +25,7 @@
 #include "acpi.hpp"
 #include "keyboard.hpp"
 #include "task.hpp"
+#include "terminal.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -215,6 +216,8 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
         .Wakeup()
         .ID();
 
+    const uint64_t task_terminal_id = task_manager->NewTask().InitContext(TaskTerminal, 0).Wakeup().ID();
+
     // MSI interrupt settings, USB driver initialization, xhc restart
     usb::xhci::Initialize();
     InitializeMouse();
@@ -254,6 +257,10 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
                 textbox_cursor_visible = !textbox_cursor_visible;
                 DrawTextCursor(textbox_cursor_visible);
                 layer_manager->Draw(text_window_layer_id);
+
+                __asm__("cli");
+                task_manager->SendMessage(task_terminal_id, *msg);
+                __asm__("sti");
             }
             break;
         case Message::kKeyPush:
