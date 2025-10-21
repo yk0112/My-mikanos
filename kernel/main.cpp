@@ -77,7 +77,7 @@ void InitializeTextWindow() {
     text_window_layer_id = layer_manager->NewLayer()
         .SetWindow(text_window)
         .SetDraggable(true)
-        .Move({ 350, 200 })
+        .Move({ 500, 100 })
         .ID();
 
     layer_manager->UpDown(text_window_layer_id, std::numeric_limits<int>::max());
@@ -195,7 +195,7 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     InitializeTextWindow();
     InitializeTaskBWindow();
     layer_manager->Draw({ {0, 0}, ScreenSize() });
-    // active_layer->Activate(task_b_window_layer_id); この行を追加するとタスクBウィンドウが表示されない
+    active_layer->Activate(task_b_window_layer_id);
 
     // initialize local APIC timer, Set a timer for cursor
     acpi::Initialize(acpi_table);
