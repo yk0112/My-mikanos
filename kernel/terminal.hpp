@@ -27,6 +27,8 @@ private:
     int linebuf_index_{ 0 };
     std::array<char, kLineMax> linebuf_{};
     void ScrollOne();
+    void ExecuteLine();
+    void Print(const char* s);
 };
 
 void TaskTerminal(uint64_t task_id_, int64_t data);
