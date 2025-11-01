@@ -1,4 +1,5 @@
 #include  <algorithm>
+#include <map>
 #include "console.hpp"
 #include "logger.hpp"
 #include "layer.hpp"
@@ -217,8 +218,8 @@ namespace {
 }
 
 LayerManager* layer_manager;
-
 ActiveLayer* active_layer;
+std::map<unsigned int, uint64_t>* layer_task_map;
 
 void InitializeLayer() {
     const auto screen_size = ScreenSize();
