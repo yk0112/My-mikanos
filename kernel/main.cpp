@@ -115,7 +115,7 @@ void InputTextWindow(char c) {
 
 extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_config_ref,
     const MemoryMap& memory_map_ref,
-    const acpi::RSDP& acpi_table) {
+    const acpi::RSDP& acpi_table, void* volume_image) {
     // Display background and Console
     InitializeGraphics(frame_buffer_config_ref);
     InitializeConsole();
@@ -164,6 +164,22 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     InitializeMouse();
     // Register keyboard event handler with the driver
     InitializeKeyboard();
+
+    uint8_t* p = reinterpret_cast<uint8_t*>(volume_image);
+    printk("volume Image:\n");
+    for (int i = 0; i < 16; ++i) {
+        printk("%04x:", i * 16);
+        for (int j = 0; j < 8; ++j) {
+            printk(" %02x:", *p);
+            ++p;
+        }
+        printk(" ");
+        for (int j = 0; j < 8; ++j) {
+            printk(" %02x:", *p);
+            ++p;
+        }
+        printk("\n");
+    }
 
     char str[128];
     while (true) {
