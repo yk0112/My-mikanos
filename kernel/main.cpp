@@ -26,6 +26,7 @@
 #include "keyboard.hpp"
 #include "task.hpp"
 #include "terminal.hpp"
+#include "fat.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -132,6 +133,8 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     // Make Interrupt Descriptor Table(IDT) and MSI interrupt Settings.
     InitializeInterrupt();
 
+    fat::Initialize(volume_image);
+
     // Scan all PCI devices info
     InitializePCI();
 
@@ -164,22 +167,6 @@ extern "C" void KernelMainNewStack(const struct FrameBufferConfig& frame_buffer_
     InitializeMouse();
     // Register keyboard event handler with the driver
     InitializeKeyboard();
-
-    uint8_t* p = reinterpret_cast<uint8_t*>(volume_image);
-    printk("volume Image:\n");
-    for (int i = 0; i < 16; ++i) {
-        printk("%04x:", i * 16);
-        for (int j = 0; j < 8; ++j) {
-            printk(" %02x:", *p);
-            ++p;
-        }
-        printk(" ");
-        for (int j = 0; j < 8; ++j) {
-            printk(" %02x:", *p);
-            ++p;
-        }
-        printk("\n");
-    }
 
     char str[128];
     while (true) {
