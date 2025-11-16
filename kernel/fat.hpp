@@ -64,6 +64,11 @@ namespace fat {
     } __attribute__((packed));
 
     extern BPB* boot_volume_image;
+    extern unsigned long bytes_per_cluster;
+
+    static const unsigned long kEndOfClusterchain = 0x0ffffffflu;
+
+    void Initialize(void* volume_image);
 
     uintptr_t GetClusterAddr(unsigned long cluster);
 
@@ -74,5 +79,9 @@ namespace fat {
         return reinterpret_cast<T*>(GetClusterAddr(cluster));
     }
 
-    void Initialize(void* volume_image);
+    unsigned long NextCluster(unsigned long cluster);
+
+    bool NameIsEqual(const DirectoryEntry& entry, const char* name);
+
+    DirectoryEntry* FindFile(const char* name, unsigned long directory_cluster = 0);
 }
